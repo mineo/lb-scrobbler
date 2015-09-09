@@ -44,7 +44,7 @@ isListenWorthy oldStatus newStatus =
     case oldStatus of
       Nothing -> let pl = played_long_enough newElapsed newLength in newState == MPD.Playing && isJust pl && fromJust pl
       Just _ -> let pl = played_long_enough oldElapsed oldLength -- Check if we played the old song long enough to make it scrobbleworthy
-                    rep = playing_repeatedly oldElapsed newElapsed newLength -- Check if the song is playing repeatedly
+                    rep = playing_repeatedly oldElapsed newElapsed newLength
                     val = (||) <$> pl <*> rep
                 in isJust val && fromJust val
   else False
@@ -56,6 +56,10 @@ isListenWorthy oldStatus newStatus =
           el <- elapsed
           l <- length
           return (el > 240 || l >= 30 && el > fromIntegral l / 2)
+        -- Check if the song is playing on repeat. This doesn't work
+        -- yet because prev_elapsed is from the beginning of the
+        -- previous song and thus too small.
+        -- TODO set up time measurement like mpdscribble does
         playing_repeatedly :: Maybe Double -> Maybe Double -> Maybe MPD.Seconds -> Maybe Bool
         playing_repeatedly prev_elapsed elapsed length = do
           pr_el <- prev_elapsed
