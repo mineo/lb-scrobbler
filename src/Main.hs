@@ -3,23 +3,31 @@
 {-# LANGUAGE RecordWildCards   #-}
 module Main where
 
-import           Control.Exception   (handle)
-import           Control.Monad       (liftM)
-import           Data.Aeson          (ToJSON (..), encode, object, (.=))
-import           Data.Maybe          (fromJust, isJust)
-import           Data.Text           (pack)
-import           Data.UUID           (UUID, fromString)
-import           Data.UUID.Aeson     ()
+import           Control.Exception     (handle)
+import           Control.Lens.Lens     ((&))
+import           Control.Lens.Setter   ((.~))
+import           Control.Monad         (liftM)
+import           Data.Aeson            (ToJSON (..), encode, object, (.=))
+import qualified Data.ByteString.Char8 as BS
+import           Data.Maybe            (fromJust, isJust)
+import           Data.Text             (pack)
+import           Data.UUID             (UUID, fromString)
+import qualified Data.UUID             as UUID
+import           Data.UUID.Aeson       ()
 import           GHC.Generics
-import           Network.HTTP.Client (HttpException)
-import           Network.MPD         (Metadata (..), Subsystem (..), idle,
-                                      sgGetTag, toString, withMPD)
-import qualified Network.MPD         as MPD
-import           Network.Wreq        (partLBS, post)
-import           Safe                (headMay)
-import           System.Environment  (lookupEnv)
-import           System.Exit         (die)
-import           System.Posix.Time   (epochTime)
+import           Network.HTTP.Client   (HttpException)
+import           Network.MPD           (Metadata (..), Subsystem (..), idle,
+                                        sgGetTag, toString, withMPD)
+import qualified Network.MPD           as MPD
+import           Network.Wreq          (partLBS, post)
+import           Network.Wreq          (postWith)
+import           Network.Wreq          (defaults)
+import           Network.Wreq          (param)
+import           Network.Wreq          (header)
+import           Safe                  (headMay)
+import           System.Environment    (lookupEnv)
+import           System.Exit           (die)
+import           System.Posix.Time     (epochTime)
 
 type Token = UUID
 type User = String
@@ -58,6 +66,7 @@ instance ToJSON Listen where
                              [ "recording_id" .= recordingID
                              , "artist_id" .= artistID
                              , "release_id" .= releaseID
+                             , "tags" .= ([]::[Bool])
                              ]
                            ]
                          ]
@@ -66,7 +75,7 @@ data Request = Single Listen -- TODO: Add Import & PlayingNow
 
 instance ToJSON Request where
   toJSON (Single l) = object [ "listen_type" .= ("single"::String)
-                             , "payload" .= l
+                             , "payload" .= [l]
                              ]
 
 data ListenBuild = Either String Listen
@@ -182,11 +191,14 @@ submit listen = case listen of
   where upload :: Request -> IO ()
         upload request = do
           u <- user
-          _ <- post ("http://listenbrainz.org/listen/user/" ++ (fromJust u))
-               [partLBS "payload" (encode (toJSON request))]
+          t <- token
+          _ <- postWith (defaults & header "Authorization" .~ [BS.pack ("Token " ++ UUID.toString ( fromJust t))])
+               ("http://listenbrainz.org/listen/user/" ++ (fromJust u))
+               (toJSON request)
           print "Upload successful"
         handleHTTPException :: HttpException -> IO ()
         handleHTTPException = print . show
+
 idleHandle :: Maybe MPD.Status -> IO ()
 idleHandle oldStatus = do
   resp <- getCurrentSong
