@@ -35,24 +35,24 @@ token =
 
 
 data Listen = Listen
-  { listened_at  :: Maybe Int
-  , track_name   :: String
-  , artist_name  :: String
-  , artist_id    :: UUID
-  , recording_id :: UUID
-  , release_id   :: Maybe UUID
+  { listenedAt  :: Maybe Int
+  , trackName   :: String
+  , artistName  :: String
+  , artistID    :: UUID
+  , recordingID :: UUID
+  , releaseID   :: Maybe UUID
   } deriving (Generic)
 
 instance ToJSON Listen where
   toJSON (Listen {..}) = object
-                         [ "listened_at" .= listened_at
+                         [ "listened_at" .= listenedAt
                          , "track_metadata" .= object
-                           [ "artist_name" .= (pack artist_name)
-                           , "track_name" .= (pack track_name)
+                           [ "artist_name" .= (pack artistName)
+                           , "track_name" .= (pack trackName)
                            , "additional_info" .= object
-                             [ "recording_id" .= recording_id
-                             , "artist_id" .= artist_id
-                             , "release_id" .= release_id
+                             [ "recording_id" .= recordingID
+                             , "artist_id" .= artistID
+                             , "release_id" .= releaseID
                              ]
                            ]
                          ]
@@ -125,7 +125,7 @@ isListenWorthy oldStatus newStatus =
 songToListen :: MPD.Song -> IO (Either String Listen)
 songToListen song = do
   time <- fromEnum <$> epochTime
-  return (makeListen >>= \l -> Right ((l albumID) { listened_at = Just time}))
+  return (makeListen >>= \l -> Right ((l albumID) { listenedAt = Just time}))
   where getTag :: Metadata -> Maybe [MPD.Value]
         getTag t = sgGetTag t song
         albumID :: Maybe UUID
