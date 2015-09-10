@@ -19,6 +19,7 @@ executable lb-scrobbler
                      , base >= 4.7 && < 5
                      , libmpd==0.9.0.4
                      , safe==0.3.9
+                     , text==1.2.1.3
                      , time==1.5.0.1
                      , unix==2.7.1.0
                      , uuid-aeson==0.1.0.0

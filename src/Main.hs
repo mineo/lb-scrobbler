@@ -1,12 +1,16 @@
-{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DeriveGeneric     #-}
+{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE RecordWildCards   #-}
 module Main where
 
 import           Control.Monad     (when)
 import           Control.Monad     (liftM2)
 import           Control.Monad     (liftM3)
 import           Control.Monad     (ap)
-import           Data.Aeson        (ToJSON, encode)
+import           Data.Aeson        (ToJSON (..), encode, object, (.:), (.:?),
+                                    (.=))
 import           Data.Maybe        (fromJust, isJust)
+import           Data.Text         (Text, pack)
 import           Data.UUID         (UUID, fromString)
 import           Data.UUID.Aeson   ()
 import           GHC.Generics
@@ -17,7 +21,7 @@ import           Safe              (headMay, headNote)
 import           System.Posix.Time (epochTime)
 
 data Listen = Listen
-  { listened_at  :: Int
+  { listened_at  :: Maybe Int
   , track_name   :: String
   , artist_name  :: String
   , artist_id    :: UUID
@@ -25,7 +29,19 @@ data Listen = Listen
   , release_id   :: Maybe UUID
   } deriving (Generic)
 
-instance ToJSON Listen
+instance ToJSON Listen where
+  toJSON (Listen {..}) = object
+                         [ "listened_at" .= listened_at
+                         , "track_metadata" .= object
+                           [ "artist_name" .= (pack artist_name)
+                           , "track_name" .= (pack track_name)
+                           , "additional_info" .= object
+                             [ "recording_id" .= recording_id
+                             , "artist_id" .= artist_id
+                             , "release_id" .= release_id
+                             ]
+                           ]
+                         ]
 
 data ListenBuild = Either String Listen
 
@@ -95,7 +111,7 @@ isListenWorthy oldStatus newStatus =
 songToListen :: MPD.Song -> IO (Either String Listen)
 songToListen song = do
   time <- fromEnum <$> epochTime
-  return (makeListen >>= \l -> Right ((l albumID) { listened_at = time}))
+  return (makeListen >>= \l -> Right ((l albumID) { listened_at = Just time}))
   where getTag :: Metadata -> Maybe [MPD.Value]
         getTag t = sgGetTag t song
         albumID :: Maybe UUID
@@ -116,7 +132,7 @@ songToListen song = do
                            Nothing -> Left (show t)
         makeListen :: Either String (Maybe UUID -> Listen)
         makeListen =
-          Listen 0
+          Listen (Just 0)
           <$> getStringTag Title
           <*> getStringTag Artist
           <*> getUUIDTag MUSICBRAINZ_ARTISTID
