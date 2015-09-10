@@ -3,22 +3,17 @@
 {-# LANGUAGE RecordWildCards   #-}
 module Main where
 
-import           Control.Monad      (when)
-import           Control.Monad      (liftM2)
-import           Control.Monad      (liftM3)
-import           Control.Monad      (ap)
 import           Control.Monad      (liftM)
-import           Data.Aeson         (ToJSON (..), encode, object, (.:), (.:?),
-                                     (.=))
+import           Data.Aeson         (ToJSON (..), encode, object, (.=))
 import           Data.Maybe         (fromJust, isJust)
-import           Data.Text          (Text, pack)
+import           Data.Text          (pack)
 import           Data.UUID          (UUID, fromString)
 import           Data.UUID.Aeson    ()
 import           GHC.Generics
 import           Network.MPD        (Metadata (..), Subsystem (..), idle,
                                      sgGetTag, toString, withMPD)
 import qualified Network.MPD        as MPD
-import           Safe               (headMay, headNote)
+import           Safe               (headMay)
 import           System.Environment (lookupEnv)
 import           System.Exit        (die)
 import           System.Posix.Time  (epochTime)
@@ -47,8 +42,8 @@ instance ToJSON Listen where
   toJSON (Listen {..}) = object
                          [ "listened_at" .= listenedAt
                          , "track_metadata" .= object
-                           [ "artist_name" .= (pack artistName)
-                           , "track_name" .= (pack trackName)
+                           [ "artist_name" .= pack artistName
+                           , "track_name" .= pack trackName
                            , "additional_info" .= object
                              [ "recording_id" .= recordingID
                              , "artist_id" .= artistID
