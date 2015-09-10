@@ -19,6 +19,7 @@ import           System.Exit        (die)
 import           System.Posix.Time  (epochTime)
 
 type Token = UUID
+type User = String
 
 token :: IO (Maybe Token)
 token =
@@ -27,6 +28,12 @@ token =
     Just t -> fromString t)
   (lookupEnv "LISTENBRAINZ_TOKEN")
 
+user :: IO (Maybe User)
+user =
+  liftM (\l -> case l of
+    Nothing -> Nothing
+    Just t -> l)
+  (lookupEnv "LISTENBRAINZ_USER")
 
 
 data Listen = Listen
@@ -179,9 +186,15 @@ handleResponse :: MPD.Response [Subsystem] -> Maybe MPD.Song -> Maybe MPD.Status
 handleResponse resp previousSong previousStatus =
   either print (\_ -> getStatus >>= either print (scrobble previousSong previousStatus)) resp
 
+checkEnv :: IO (Maybe a) -> String -> IO ()
+checkEnv var name = do
+  t <- var
+  case t of
+    Nothing -> die (name ++ "is not set correctly")
+    Just _ -> return ()
+
 main :: IO ()
 main = do
-  t <- token
-  case t of
-    Nothing -> die "LISTENBRAINZ_TOKEN is not set or is not a UUID"
-    Just _ -> handleResponse (Right [PlayerS]) Nothing Nothing
+  checkEnv token "LISTENBRAINZ_TOKEN"
+  checkEnv user "LISTENBRAINZ_USER"
+  handleResponse (Right [PlayerS]) Nothing Nothing
