@@ -6,7 +6,7 @@ module Main where
 import           Control.Exception     (handle)
 import           Control.Lens.Setter   (set)
 import           Control.Monad         (liftM)
-import           Data.Aeson            (ToJSON (..), encode, object, (.=))
+import           Data.Aeson            (ToJSON (..), object, (.=))
 import qualified Data.ByteString.Char8 as BS
 import           Data.Maybe            (fromJust, isJust)
 import           Data.Text             (pack)
@@ -18,11 +18,7 @@ import           Network.HTTP.Client   (HttpException)
 import           Network.MPD           (Metadata (..), Subsystem (..), idle,
                                         sgGetTag, toString, withMPD)
 import qualified Network.MPD           as MPD
-import           Network.Wreq          (partLBS, post)
-import           Network.Wreq          (postWith)
-import           Network.Wreq          (defaults)
-import           Network.Wreq          (param)
-import           Network.Wreq          (header)
+import           Network.Wreq          (defaults, header, postWith)
 import           Safe                  (headMay)
 import           System.Environment    (lookupEnv)
 import           System.Exit           (die)
@@ -42,7 +38,7 @@ user :: IO (Maybe User)
 user =
   liftM (\l -> case l of
     Nothing -> Nothing
-    Just t -> l)
+    Just _ -> l)
   (lookupEnv "LISTENBRAINZ_USER")
 
 
