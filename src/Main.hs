@@ -3,22 +3,36 @@
 {-# LANGUAGE RecordWildCards   #-}
 module Main where
 
-import           Control.Monad     (when)
-import           Control.Monad     (liftM2)
-import           Control.Monad     (liftM3)
-import           Control.Monad     (ap)
-import           Data.Aeson        (ToJSON (..), encode, object, (.:), (.:?),
-                                    (.=))
-import           Data.Maybe        (fromJust, isJust)
-import           Data.Text         (Text, pack)
-import           Data.UUID         (UUID, fromString)
-import           Data.UUID.Aeson   ()
+import           Control.Monad      (when)
+import           Control.Monad      (liftM2)
+import           Control.Monad      (liftM3)
+import           Control.Monad      (ap)
+import           Control.Monad      (liftM)
+import           Data.Aeson         (ToJSON (..), encode, object, (.:), (.:?),
+                                     (.=))
+import           Data.Maybe         (fromJust, isJust)
+import           Data.Text          (Text, pack)
+import           Data.UUID          (UUID, fromString)
+import           Data.UUID.Aeson    ()
 import           GHC.Generics
-import           Network.MPD       (Metadata (..), Subsystem (..), idle,
-                                    sgGetTag, toString, withMPD)
-import qualified Network.MPD       as MPD
-import           Safe              (headMay, headNote)
-import           System.Posix.Time (epochTime)
+import           Network.MPD        (Metadata (..), Subsystem (..), idle,
+                                     sgGetTag, toString, withMPD)
+import qualified Network.MPD        as MPD
+import           Safe               (headMay, headNote)
+import           System.Environment (lookupEnv)
+import           System.Exit        (die)
+import           System.Posix.Time  (epochTime)
+
+type Token = UUID
+
+token :: IO (Maybe Token)
+token =
+  liftM (\l -> case l of
+    Nothing -> Nothing
+    Just t -> fromString t)
+  (lookupEnv "LISTENBRAINZ_TOKEN")
+
+
 
 data Listen = Listen
   { listened_at  :: Maybe Int
@@ -164,4 +178,8 @@ handleResponse resp previousSong previousStatus =
   either print (\_ -> getStatus >>= either print (scrobble previousSong previousStatus)) resp
 
 main :: IO ()
-main = handleResponse (Right [PlayerS]) Nothing Nothing
+main = do
+  t <- token
+  case t of
+    Nothing -> die "LISTENBRAINZ_TOKEN is not set or is not a UUID"
+    Just _ -> handleResponse (Right [PlayerS]) Nothing Nothing
