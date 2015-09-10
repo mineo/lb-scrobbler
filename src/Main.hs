@@ -52,6 +52,13 @@ instance ToJSON Listen where
                            ]
                          ]
 
+data Request = Single Listen -- TODO: Add Import & PlayingNow
+
+instance ToJSON Request where
+  toJSON (Single l) = object [ "listen_type" .= ("single"::String)
+                             , "payload" .= l
+                             ]
+
 data ListenBuild = Either String Listen
 
 idleMPD :: IO (MPD.Response [Subsystem])
