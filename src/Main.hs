@@ -4,8 +4,7 @@
 module Main where
 
 import           Control.Exception     (handle)
-import           Control.Lens.Lens     ((&))
-import           Control.Lens.Setter   ((.~))
+import           Control.Lens.Setter   (set)
 import           Control.Monad         (liftM)
 import           Data.Aeson            (ToJSON (..), encode, object, (.=))
 import qualified Data.ByteString.Char8 as BS
@@ -192,7 +191,10 @@ submit listen = case listen of
         upload request = do
           u <- user
           t <- token
-          _ <- postWith (defaults & header "Authorization" .~ [BS.pack ("Token " ++ UUID.toString ( fromJust t))])
+          _ <- postWith (set
+                         (header "Authorization")
+                         [BS.pack ("Token " ++ UUID.toString ( fromJust t))]
+                         defaults)
                ("http://listenbrainz.org/listen/user/" ++ (fromJust u))
                (toJSON request)
           print "Upload successful"
