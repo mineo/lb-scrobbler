@@ -3,20 +3,23 @@
 {-# LANGUAGE RecordWildCards   #-}
 module Main where
 
-import           Control.Monad      (liftM)
-import           Data.Aeson         (ToJSON (..), encode, object, (.=))
-import           Data.Maybe         (fromJust, isJust)
-import           Data.Text          (pack)
-import           Data.UUID          (UUID, fromString)
-import           Data.UUID.Aeson    ()
+import           Control.Exception   (handle)
+import           Control.Monad       (liftM)
+import           Data.Aeson          (ToJSON (..), encode, object, (.=))
+import           Data.Maybe          (fromJust, isJust)
+import           Data.Text           (pack)
+import           Data.UUID           (UUID, fromString)
+import           Data.UUID.Aeson     ()
 import           GHC.Generics
-import           Network.MPD        (Metadata (..), Subsystem (..), idle,
-                                     sgGetTag, toString, withMPD)
-import qualified Network.MPD        as MPD
-import           Safe               (headMay)
-import           System.Environment (lookupEnv)
-import           System.Exit        (die)
-import           System.Posix.Time  (epochTime)
+import           Network.HTTP.Client (HttpException)
+import           Network.MPD         (Metadata (..), Subsystem (..), idle,
+                                      sgGetTag, toString, withMPD)
+import qualified Network.MPD         as MPD
+import           Network.Wreq        (partLBS, post)
+import           Safe                (headMay)
+import           System.Environment  (lookupEnv)
+import           System.Exit         (die)
+import           System.Posix.Time   (epochTime)
 
 type Token = UUID
 type User = String
@@ -171,9 +174,19 @@ scrobble previousSong oldStatus newStatus = do
         doScrobble ms = case ms of
           Nothing -> print "No song is playing"
           Just s -> songToListen s >>= submit
-        submit :: Either String Listen -> IO ()
-        submit = either print (print . encode)
 
+submit :: Either String Listen -> IO ()
+submit listen = case listen of
+  Left s -> print s
+  Right l -> handle handleHTTPException (upload (Single l))
+  where upload :: Request -> IO ()
+        upload request = do
+          u <- user
+          _ <- post ("http://listenbrainz.org/listen/user/" ++ (fromJust u))
+               [partLBS "payload" (encode (toJSON request))]
+          print "Upload successful"
+        handleHTTPException :: HttpException -> IO ()
+        handleHTTPException = print . show
 idleHandle :: Maybe MPD.Status -> IO ()
 idleHandle oldStatus = do
   resp <- getCurrentSong
