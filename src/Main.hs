@@ -14,11 +14,12 @@ import           Data.UUID             (UUID, fromString)
 import qualified Data.UUID             as UUID
 import           Data.UUID.Aeson       ()
 import           GHC.Generics
-import           Network.HTTP.Client   (HttpException)
+import           Network.HTTP.Client   (HttpException, defaultManagerSettings,
+                                        managerResponseTimeout)
 import           Network.MPD           (Metadata (..), Subsystem (..), idle,
                                         sgGetTag, toString, withMPD)
 import qualified Network.MPD           as MPD
-import           Network.Wreq          (defaults, header, postWith)
+import           Network.Wreq          (defaults, header, manager, postWith)
 import           Safe                  (headMay)
 import           System.Environment    (lookupEnv)
 import           System.Exit           (die)
@@ -187,9 +188,12 @@ submit listen = case listen of
         upload request = do
           u <- user
           t <- token
-          _ <- postWith (set
-                         (header "Authorization")
-                         [BS.pack ("Token " ++ UUID.toString ( fromJust t))]
+          _ <- postWith (( set
+                          (header "Authorization")
+                          [BS.pack ("Token " ++ UUID.toString ( fromJust t))]
+                        . set
+                          manager
+                          (Left (defaultManagerSettings { managerResponseTimeout = Just 20000000})))
                          defaults)
                ("http://listenbrainz.org/listen/user/" ++ (fromJust u))
                (toJSON request)
