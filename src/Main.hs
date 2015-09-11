@@ -189,12 +189,11 @@ scrobble previousSong oldStatus newStatus = do
   where doScrobble :: Maybe MPD.Song -> IO ()
         doScrobble ms = case ms of
           Nothing -> print "No song is playing"
-          Just s -> songToListen s >>= submit
+          Just s -> songToListen s >>= either print submit
 
-submit :: Either String Listen -> IO ()
-submit listen = case listen of
-  Left s -> print s
-  Right l -> handle handleHTTPException (upload (Single l))
+submit :: Listen -> IO ()
+submit listen =
+  handle handleHTTPException (upload (Single listen))
   where upload :: Request -> IO ()
         upload request = do
           u <- user
