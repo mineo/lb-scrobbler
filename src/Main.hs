@@ -145,33 +145,36 @@ songToListen song = do
   return (makeListen >>= \l -> Right ((l albumID) { listenedAt = Just time}))
   where getTag :: Metadata -> Maybe [MPD.Value]
         getTag t = sgGetTag t song
+        getTagCase :: Metadata -> ([MPD.Value] -> Either String t) -> Either String t
+        getTagCase t f = case getTag t of
+          Nothing -> Left (show t)
+          Just u -> case f u of
+            Right c -> Right c
+            Left s -> Left s
         albumID :: Maybe UUID
         albumID = case getUUIDTag MUSICBRAINZ_ALBUMID of
                     Left _ -> Nothing
                     Right u -> Just u
         getStringTag :: Metadata -> Either String String
-        getStringTag t = case getTag t of
-               Nothing -> Left (show t)
-               Just v -> case toString <$> headMay v of
+        getStringTag t = getTagCase t
+                         (\v -> case toString <$> headMay v of
                            Just s -> Right s
-                           Nothing -> Left (show t)
+                           Nothing -> Left (show t))
         getUUIDTag :: Metadata -> Either String UUID
-        getUUIDTag t = case getTag t of
-               Nothing -> Left (show t)
-               Just v -> case toString <$> headMay v >>= fromString of
+        getUUIDTag t = getTagCase t
+                       (\v -> case toString <$> headMay v >>= fromString of
                            Just u -> Right u
-                           Nothing -> Left (show t)
+                           Nothing -> Left (show t))
         getUUIDList :: Metadata -> Either String [UUID]
-        getUUIDList t = case getTag t of
-              Nothing -> Left (show t)
-              Just v -> case fromString <$> toString <$> (v::[MPD.Value]) of
-                          [] -> Left (show t)
-                          -- If all strings could be converted to
-                          -- UUIDs, return the list of UUIDs, if one
-                          -- of them couldn't, return Left
-                          l -> if foldl (\o n -> o && isJust n) True l
-                               then Right (fromJust <$> l)
-                               else Left (show t)
+        getUUIDList t = getTagCase t
+                        (\v -> case fromString <$> toString <$> (v::[MPD.Value]) of
+                           [] -> Left (show t)
+                           -- If all strings could be converted to
+                           -- UUIDs, return the list of UUIDs, if one
+                           -- of them couldn't, return Left
+                           l -> if foldl (\o n -> o && isJust n) True l
+                                then Right (fromJust <$> l)
+                                else Left (show t))
         makeListen :: Either String (Maybe UUID -> Listen)
         makeListen =
           Listen (Just 0)
