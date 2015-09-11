@@ -47,7 +47,7 @@ data Listen = Listen
   { listenedAt  :: Maybe Int
   , trackName   :: String
   , artistName  :: String
-  , artistID    :: UUID
+  , artistID    :: [UUID]
   , recordingID :: UUID
   , releaseID   :: Maybe UUID
   } deriving (Generic)
@@ -161,12 +161,23 @@ songToListen song = do
                Just v -> case toString <$> headMay v >>= fromString of
                            Just u -> Right u
                            Nothing -> Left (show t)
+        getUUIDList :: Metadata -> Either String [UUID]
+        getUUIDList t = case getTag t of
+              Nothing -> Left (show t)
+              Just v -> case fromString <$> toString <$> (v::[MPD.Value]) of
+                          [] -> Left (show t)
+                          -- If all strings could be converted to
+                          -- UUIDs, return the list of UUIDs, if one
+                          -- of them couldn't, return Left
+                          l -> if foldl (\o n -> o && isJust n) True l
+                               then Right (fromJust <$> l)
+                               else Left (show t)
         makeListen :: Either String (Maybe UUID -> Listen)
         makeListen =
           Listen (Just 0)
           <$> getStringTag Title
           <*> getStringTag Artist
-          <*> getUUIDTag MUSICBRAINZ_ARTISTID
+          <*> getUUIDList MUSICBRAINZ_ARTISTID
           <*> getUUIDTag MUSICBRAINZ_TRACKID
 
 scrobble :: Maybe MPD.Song -> Maybe MPD.Status -> MPD.Status -> IO ()
