@@ -5,7 +5,7 @@ description:         Please see README.md
 homepage:            http://github.com/mineo/lb-scrobbler#readme
 license:             BSD3
 license-file:        LICENSE
-author:              Wieland Hoffman
+author:              Wieland Hoffmann
 maintainer:          themineo+hackage@gmail.com
 copyright:           2015 Wieland Hoffmann
 build-type:          Simple
