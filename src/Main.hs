@@ -1,4 +1,3 @@
-{-# LANGUAGE DeriveGeneric     #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards   #-}
 module Main where
@@ -13,7 +12,6 @@ import           Data.Text             (pack)
 import           Data.UUID             (UUID, fromString)
 import qualified Data.UUID             as UUID
 import           Data.UUID.Aeson       ()
-import           GHC.Generics
 import           Network.HTTP.Client   (HttpException, defaultManagerSettings,
                                         managerResponseTimeout)
 import           Network.MPD           (Metadata (..), Subsystem (..), idle,
@@ -50,7 +48,7 @@ data Listen = Listen
   , artistID    :: [UUID]
   , recordingID :: UUID
   , releaseID   :: Maybe UUID
-  } deriving (Generic)
+  }
 
 instance ToJSON Listen where
   toJSON (Listen {..}) = object

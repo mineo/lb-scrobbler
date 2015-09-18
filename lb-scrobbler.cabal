@@ -18,7 +18,7 @@ executable lb-scrobbler
   build-depends:       aeson==0.9.0.1
                      , base >= 4.7 && < 5
                      , bytestring==0.10.6.0
-                     , http-client==0.4.21
+                     , http-client==0.4.22
                      , lens==4.12.3
                      , libmpd==0.9.0.4
                      , safe==0.3.9
