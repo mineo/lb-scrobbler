@@ -206,7 +206,7 @@ submit listen =
                           manager
                           (Left (defaultManagerSettings { managerResponseTimeout = Just 20000000})))
                          defaults)
-               ("http://listenbrainz.org/listen/user/" ++ (fromJust u))
+               "http://listenbrainz.org/1/submit-listens"
                (toJSON request)
           print "Upload successful"
         handleHTTPException :: HttpException -> IO ()
