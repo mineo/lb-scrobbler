@@ -66,6 +66,11 @@ instance ToJSON Request where
 
 data ListenBuild = Either String Listen
 
+data State = State
+  { playerStatus :: MPD.Status
+  , song         :: Maybe MPD.Song
+  }
+
 idleMPD :: IO (MPD.Response [Subsystem])
 idleMPD = withMPD (idle [PlayerS])
 
@@ -173,12 +178,16 @@ songToListen song = do
           <*> getUUIDList MUSICBRAINZ_ARTISTID
           <*> getUUIDTag MUSICBRAINZ_TRACKID
 
-scrobble :: Maybe MPD.Song -> Maybe MPD.Status -> MPD.Status -> IO ()
-scrobble previousSong oldStatus newStatus = do
-  if isJust previousSong && isListenWorthy oldStatus newStatus
-    then doScrobble previousSong
+scrobble :: Maybe State -> MPD.Status -> IO ()
+scrobble previousState newStatus = do
+  if isJust previousState && isListenWorthy (playerStatus <$> previousState) newStatus
+    then doScrobble (previousState >>= song)
     else print "No scrobbling necessary"
-  idleHandle (Just newStatus)
+  currentSongResp <- getCurrentSong
+  let song = case currentSongResp of
+               Right s -> s
+               _ -> Nothing
+  idleHandle (Just (State newStatus song))
   where doScrobble :: Maybe MPD.Song -> IO ()
         doScrobble ms = case ms of
           Nothing -> print "No song is playing"
@@ -203,17 +212,12 @@ submit listen =
         handleHTTPException :: HttpException -> IO ()
         handleHTTPException = print . show
 
-idleHandle :: Maybe MPD.Status -> IO ()
-idleHandle oldStatus = do
-  resp <- getCurrentSong
-  let currentsong = case resp of
-        Right (Just song) -> Just song
-        _ -> Nothing
-    in idleMPD >>= \r -> handleResponse r currentsong oldStatus
+idleHandle :: Maybe State -> IO ()
+idleHandle oldState = idleMPD >>= \r -> handleResponse r oldState
 
-handleResponse :: MPD.Response [Subsystem] -> Maybe MPD.Song -> Maybe MPD.Status -> IO ()
-handleResponse resp previousSong previousStatus =
-  either print (\_ -> getStatus >>= either print (scrobble previousSong previousStatus)) resp
+handleResponse :: MPD.Response [Subsystem] -> Maybe State -> IO ()
+handleResponse resp state =
+  either print (\_ -> getStatus >>= either print (scrobble state)) resp
 
 checkEnv :: IO (Maybe a) -> String -> IO ()
 checkEnv var name = do
