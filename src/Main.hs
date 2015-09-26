@@ -19,6 +19,8 @@ import           Network.MPD           (Metadata (..), Subsystem (..), idle,
 import qualified Network.MPD           as MPD
 import           Network.Wreq          (defaults, header, manager, postWith)
 import           Safe                  (headMay)
+import           System.Clock          (Clock (Monotonic), TimeSpec,
+                                        diffTimeSpec, getTime)
 import           System.Environment    (lookupEnv)
 import           System.Exit           (die)
 import           System.Posix.Time     (epochTime)
@@ -69,7 +71,8 @@ data ListenBuild = Either String Listen
 data State = State
   { playerStatus   :: MPD.Status
   , song           :: Maybe MPD.Song
-  , alreadyElapsed :: Maybe Double
+  , lastClock      :: TimeSpec
+  , alreadyElapsed :: Maybe TimeSpec
   }
 
 idleMPD :: IO (MPD.Response [Subsystem])
@@ -191,39 +194,43 @@ songToListen song = do
 
 scrobble :: Maybe State -> MPD.Status -> IO ()
 scrobble previousState newStatus = do
+  currentSongResp <- getCurrentSong
+  currentClockTick <- getTime Monotonic
+  let currentSong = case currentSongResp of
+               Right s -> s
+               _ -> Nothing
+      lastClockTick = lastClock <$> previousState
+      newState = MPD.stState newStatus
+      previousPlayerState = MPD.stState <$> playerStatus <$> previousState
+      currentlyElapsed = previousState >>= alreadyElapsed
+      newElapsed = calculateElapsed previousPlayerState newState lastClockTick currentClockTick currentlyElapsed
   -- Perform the scrobbling, if necessary
+  -- TODO: Pass in newElapsed to compare it with the song length if the state change is playing -> playing
   if isJust previousState && isListenWorthy previousState newStatus
     then doScrobble (previousState >>= song)
     else print "No scrobbling necessary"
 
   -- Wait for the next event of the player subsystem with an updated state
-  currentSongResp <- getCurrentSong
-  let song = case currentSongResp of
-               Right s -> s
-               _ -> Nothing
-      already = previousState >>= alreadyElapsed
-      newState = MPD.stState newStatus
-      previousPlayerState = MPD.stState <$> playerStatus <$> previousState
-      currentlyElapsed = extractElapsed newStatus
-      newElapsed = calculateElapsed previousPlayerState newState already currentlyElapsed
-  idleHandle (Just (State newStatus song newElapsed))
+  idleHandle (Just (State newStatus currentSong currentClockTick newElapsed))
   where doScrobble :: Maybe MPD.Song -> IO ()
         doScrobble ms = case ms of
           Nothing -> print "No song is playing"
           Just s -> songToListen s >>= either print submit
-        calculateElapsed :: Maybe MPD.State -> MPD.State -> Maybe Double -> Maybe Double -> Maybe Double
-        -- 1. If the state changed from playing to pause, save the
-        -- amount of seconds elapsed so far
-        calculateElapsed (Just MPD.Playing) MPD.Paused _ currently = currently
+        calculateElapsed :: Maybe MPD.State -> MPD.State -> Maybe TimeSpec -> TimeSpec -> Maybe TimeSpec -> Maybe TimeSpec
+        -- 1. If the state changed from playing to pause, return the
+        -- time between the last clock tick and now
+        calculateElapsed (Just MPD.Playing) MPD.Paused (Just lastClockTick) currentClockTick _ = Just (diffTimeSpec currentClockTick lastClockTick)
         -- 2. If the state changed from pause back to playing, do
         -- nothing with the value
-        calculateElapsed (Just MPD.Paused) MPD.Playing already _ = already
-        -- 3. If the state changed from playing to playing, most
-        -- likely the song changed → set the value back to 0
-        calculateElapsed (Just MPD.Playing) MPD.Playing _ _ = Just 0
+        calculateElapsed (Just MPD.Paused) MPD.Playing _ _ currentlyElapsed = currentlyElapsed
+        -- 3. A state change from playing to playing. This means that
+        -- the song changed and the new elapsed value should be the
+        -- sum of the last elapsed value and the time between the last clock tick and the current one
+        calculateElapsed (Just MPD.Playing) MPD.Playing (Just lastClockTick) currentClockTick (Just currentlyElapsed) = Just (currentlyElapsed + diffTimeSpec currentClockTick lastClockTick)
         -- 4. If any other state change means the stopped state is
-        -- involved, so set the value to 0 as well
-        calculateElapsed _ _ _ _ = Just 0
+        -- involved or the song changed, so set the value to 0 as well
+        calculateElapsed _ _ currentClockTick _ _ = diffTimeSpec <$> currentClockTick <*> currentClockTick
+
 
 submit :: Listen -> IO ()
 submit listen =
