@@ -67,8 +67,9 @@ instance ToJSON Request where
 data ListenBuild = Either String Listen
 
 data State = State
-  { playerStatus :: MPD.Status
-  , song         :: Maybe MPD.Song
+  { playerStatus   :: MPD.Status
+  , song           :: Maybe MPD.Song
+  , alreadyElapsed :: Maybe Double
   }
 
 idleMPD :: IO (MPD.Response [Subsystem])
@@ -133,6 +134,15 @@ isListenWorthy oldStatus newStatus =
         laterPosition = let v = (>=) <$> newElapsed <*> oldElapsed in isJust v && fromJust v
         sameSongLaterPosition = sameSong && laterPosition
 
+extractElapsed :: MPD.Status -> Maybe Double
+extractElapsed s = case MPD.stTime s of
+  Just (elapsed, _) -> Just elapsed
+  _ -> Nothing
+
+extractLength :: MPD.Status -> Maybe MPD.Seconds
+extractLength s = case MPD.stTime s of
+  Just (_, length) -> Just length
+  _ -> Nothing
 
 songToListen :: MPD.Song -> IO (Either String Listen)
 songToListen song = do
@@ -180,18 +190,41 @@ songToListen song = do
 
 scrobble :: Maybe State -> MPD.Status -> IO ()
 scrobble previousState newStatus = do
-  if isJust previousState && isListenWorthy (playerStatus <$> previousState) newStatus
+  let previousStatus = playerStatus <$> previousState
+      previousPlayerState = MPD.stState <$> previousStatus
+
+  -- Perform the scrobbling, if necessary
+  if isJust previousState && isListenWorthy previousStatus newStatus
     then doScrobble (previousState >>= song)
     else print "No scrobbling necessary"
+
+  -- Wait for the next event of the player subsystem with an updated state
   currentSongResp <- getCurrentSong
   let song = case currentSongResp of
                Right s -> s
                _ -> Nothing
-  idleHandle (Just (State newStatus song))
+      already = previousState >>= alreadyElapsed
+      newState = MPD.stState newStatus
+      currentlyElapsed = extractElapsed newStatus
+      newElapsed = calculateElapsed previousPlayerState newState already currentlyElapsed
+  idleHandle (Just (State newStatus song newElapsed))
   where doScrobble :: Maybe MPD.Song -> IO ()
         doScrobble ms = case ms of
           Nothing -> print "No song is playing"
           Just s -> songToListen s >>= either print submit
+        calculateElapsed :: Maybe MPD.State -> MPD.State -> Maybe Double -> Maybe Double -> Maybe Double
+        -- 1. If the state changed from playing to pause, save the
+        -- amount of seconds elapsed so far
+        calculateElapsed (Just MPD.Playing) MPD.Paused _ currently = currently
+        -- 2. If the state changed from pause back to playing, do
+        -- nothing with the value
+        calculateElapsed (Just MPD.Paused) MPD.Playing already _ = already
+        -- 3. If the state changed from playing to playing, most
+        -- likely the song changed → set the value back to 0
+        calculateElapsed (Just MPD.Playing) MPD.Playing _ _ = Just 0
+        -- 4. If any other state change means the stopped state is
+        -- involved, so set the value to 0 as well
+        calculateElapsed _ _ _ _ = Just 0
 
 submit :: Listen -> IO ()
 submit listen =
@@ -216,7 +249,7 @@ idleHandle :: Maybe State -> IO ()
 idleHandle oldState = idleMPD >>= \r -> handleResponse r oldState
 
 handleResponse :: MPD.Response [Subsystem] -> Maybe State -> IO ()
-handleResponse resp state =
+handleResponse resp state = do
   either print (\_ -> getStatus >>= either print (scrobble state)) resp
 
 checkEnv :: IO (Maybe a) -> String -> IO ()
