@@ -34,6 +34,12 @@ getStatus = withMPD MPD.status
 getCurrentSong :: IO (MPD.Response (Maybe MPD.Song))
 getCurrentSong = withMPD MPD.currentSong
 
+-- http://www.last.fm/api/scrobbling, "When is a scrobble a scrobble?"
+minPlayTime :: Nanoseconds
+minPlayTime = secondsToNanoseconds 240
+minLength :: Nanoseconds
+minLength = secondsToNanoseconds 30
+
 isListenWorthy :: Maybe State -> MPD.Status -> Bool
 isListenWorthy oldState newStatus =
   if stateKeptPlaying then
@@ -54,10 +60,6 @@ isListenWorthy oldState newStatus =
           let el = fromIntegral (timeSpecAsNanoSecs elapsed)
               l = secondsToNanoseconds length
               in (el > minPlayTime || l >= minLength && (fromIntegral el) > fromIntegral l / 2)
-        minPlayTime :: Nanoseconds
-        minPlayTime = secondsToNanoseconds 240
-        minLength :: Nanoseconds
-        minLength = secondsToNanoseconds 30
         -- Check if the song is playing on repeat. This doesn't work
         -- yet because prev_elapsed is from the beginning of the
         -- previous song and thus too small.
