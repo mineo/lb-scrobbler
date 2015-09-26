@@ -33,14 +33,6 @@ token =
     Just t -> fromString t)
   (lookupEnv "LISTENBRAINZ_TOKEN")
 
-user :: IO (Maybe User)
-user =
-  liftM (\l -> case l of
-    Nothing -> Nothing
-    Just _ -> l)
-  (lookupEnv "LISTENBRAINZ_USER")
-
-
 data Listen = Listen
   { listenedAt  :: Maybe Int
   , trackName   :: String
@@ -197,7 +189,6 @@ submit listen =
   handle handleHTTPException (upload (Single listen))
   where upload :: Request -> IO ()
         upload request = do
-          u <- user
           t <- token
           _ <- postWith (( set
                           (header "Authorization")
@@ -234,5 +225,4 @@ checkEnv var name = do
 main :: IO ()
 main = do
   checkEnv token "LISTENBRAINZ_TOKEN"
-  checkEnv user "LISTENBRAINZ_USER"
-  handleResponse (Right [PlayerS]) Nothing Nothing
+  handleResponse (Right [PlayerS]) Nothing
