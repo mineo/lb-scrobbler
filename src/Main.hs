@@ -1,5 +1,4 @@
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE RecordWildCards   #-}
 module Main where
 
 import           Control.Exception     (handle)
@@ -12,6 +11,7 @@ import           Data.Text             (pack)
 import           Data.UUID             (UUID, fromString)
 import qualified Data.UUID             as UUID
 import           Data.UUID.Aeson       ()
+import           LBS.Types
 import           Network.HTTP.Client   (HttpException, defaultManagerSettings,
                                         managerResponseTimeout)
 import           Network.MPD           (Metadata (..), Subsystem (..), idle,
@@ -25,58 +25,6 @@ import           System.Clock          (Clock (Monotonic), TimeSpec,
 import           System.Environment    (lookupEnv)
 import           System.Exit           (die)
 import           System.Posix.Time     (epochTime)
-
-type Token = UUID
-type User = String
-
-token :: IO (Maybe Token)
-token =
-  liftM (\l -> case l of
-    Nothing -> Nothing
-    Just t -> fromString t)
-  (lookupEnv "LISTENBRAINZ_TOKEN")
-
-data Listen = Listen
-  { listenedAt  :: Maybe Int
-  , trackName   :: String
-  , artistName  :: String
-  , artistID    :: [UUID]
-  , recordingID :: UUID
-  , releaseID   :: Maybe UUID
-  }
-
-instance ToJSON Listen where
-  toJSON (Listen {..}) = object
-                         [ "listened_at" .= listenedAt
-                         , "track_metadata" .= object
-                           [ "artist_name" .= pack artistName
-                           , "track_name" .= pack trackName
-                           , "additional_info" .= object
-                             [ "recording_id" .= recordingID
-                             , "artist_id" .= artistID
-                             , "release_id" .= releaseID
-                             , "tags" .= ([]::[Bool])
-                             ]
-                           ]
-                         ]
-
-data Request = Single Listen -- TODO: Add Import & PlayingNow
-
-instance ToJSON Request where
-  toJSON (Single l) = object [ "listen_type" .= ("single"::String)
-                             , "payload" .= [l]
-                             ]
-
-data ListenBuild = Either String Listen
-
-data State = State
-  { playerStatus             :: MPD.Status
-  , song                     :: Maybe MPD.Song
-  , lastClock                :: TimeSpec
-  , timeElapsedInCurrentSong :: Maybe TimeSpec
-  }
-
-type Nanoseconds = Integer
 
 secondsToNanoseconds :: MPD.Seconds -> Nanoseconds
 secondsToNanoseconds = (*10^9)
