@@ -3,14 +3,11 @@ module Main where
 
 import           Control.Exception     (handle)
 import           Control.Lens.Setter   (set)
-import           Control.Monad         (liftM)
-import           Data.Aeson            (ToJSON (..), object, (.=))
+import           Data.Aeson            (ToJSON (..))
 import qualified Data.ByteString.Char8 as BS
 import           Data.Maybe            (fromJust, isJust)
-import           Data.Text             (pack)
 import           Data.UUID             (UUID, fromString)
 import qualified Data.UUID             as UUID
-import           Data.UUID.Aeson       ()
 import           LBS.Types
 import           Network.HTTP.Client   (HttpException, defaultManagerSettings,
                                         managerResponseTimeout)
@@ -22,7 +19,6 @@ import           Safe                  (headMay)
 import           System.Clock          (Clock (Monotonic), TimeSpec,
                                         diffTimeSpec, getTime,
                                         timeSpecAsNanoSecs)
-import           System.Environment    (lookupEnv)
 import           System.Exit           (die)
 import           System.Posix.Time     (epochTime)
 
