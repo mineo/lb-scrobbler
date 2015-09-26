@@ -81,9 +81,9 @@ getStatus = withMPD MPD.status
 getCurrentSong :: IO (MPD.Response (Maybe MPD.Song))
 getCurrentSong = withMPD MPD.currentSong
 
-isListenWorthy :: Maybe MPD.Status -> MPD.Status -> Bool
-isListenWorthy oldStatus newStatus =
-  if not switched_to_paused && not sameSongLaterPosition then
+isListenWorthy :: Maybe State -> MPD.Status -> Bool
+isListenWorthy oldState newStatus =
+  if stateKeptPlaying&& not sameSongLaterPosition then
     case oldStatus of
       Nothing -> let pl = played_long_enough newElapsed newLength in newState == MPD.Playing && isJust pl && fromJust pl
       Just _ -> let pl = played_long_enough oldElapsed oldLength -- Check if we played the old song long enough to make it scrobbleworthy
@@ -92,8 +92,9 @@ isListenWorthy oldStatus newStatus =
                 in isJust val && fromJust val
   else False
   where newState = MPD.stState newStatus
-        oldState = MPD.stState <$> oldStatus
-        switched_to_paused = (newState /= MPD.Playing) && (oldState == Just MPD.Playing)
+        oldStatus = playerStatus <$> oldState
+        oldPlayerState = MPD.stState <$> oldStatus
+        stateKeptPlaying = (newState == MPD.Playing) && (oldPlayerState == Just MPD.Playing)
         played_long_enough :: Maybe Double -> Maybe MPD.Seconds -> Maybe Bool
         played_long_enough elapsed length = do
           el <- elapsed
@@ -190,11 +191,8 @@ songToListen song = do
 
 scrobble :: Maybe State -> MPD.Status -> IO ()
 scrobble previousState newStatus = do
-  let previousStatus = playerStatus <$> previousState
-      previousPlayerState = MPD.stState <$> previousStatus
-
   -- Perform the scrobbling, if necessary
-  if isJust previousState && isListenWorthy previousStatus newStatus
+  if isJust previousState && isListenWorthy previousState newStatus
     then doScrobble (previousState >>= song)
     else print "No scrobbling necessary"
 
@@ -205,6 +203,7 @@ scrobble previousState newStatus = do
                _ -> Nothing
       already = previousState >>= alreadyElapsed
       newState = MPD.stState newStatus
+      previousPlayerState = MPD.stState <$> playerStatus <$> previousState
       currentlyElapsed = extractElapsed newStatus
       newElapsed = calculateElapsed previousPlayerState newState already currentlyElapsed
   idleHandle (Just (State newStatus song newElapsed))
@@ -249,8 +248,7 @@ idleHandle :: Maybe State -> IO ()
 idleHandle oldState = idleMPD >>= \r -> handleResponse r oldState
 
 handleResponse :: MPD.Response [Subsystem] -> Maybe State -> IO ()
-handleResponse resp state = do
-  either print (\_ -> getStatus >>= either print (scrobble state)) resp
+handleResponse resp state = either print (\_ -> getStatus >>= either print (scrobble state)) resp
 
 checkEnv :: IO (Maybe a) -> String -> IO ()
 checkEnv var name = do
