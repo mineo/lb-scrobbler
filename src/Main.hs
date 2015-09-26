@@ -173,7 +173,7 @@ scrobble previousState newStatus = do
         calculateElapsed (Just MPD.Playing) MPD.Playing (Just lastClockTick) currentClockTick (Just currentlyElapsed) = Just (currentlyElapsed + diffTimeSpec currentClockTick lastClockTick)
         -- 4. Any other state change means the stopped state is
         -- involved or the song changed, so set the value to 0 as well
-        calculateElapsed _ _ currentClockTick _ _ = diffTimeSpec <$> currentClockTick <*> currentClockTick
+        calculateElapsed _ _ _ currentClockTick _ = Just (diffTimeSpec currentClockTick currentClockTick)
 
 
 submit :: Listen -> IO ()
