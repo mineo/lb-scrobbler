@@ -37,9 +37,9 @@ instance ToJSON Listen where
                            [ "artist_name" .= pack artistName
                            , "track_name" .= pack trackName
                            , "additional_info" .= object
-                             [ "recording_id" .= recordingID
-                             , "artist_id" .= artistID
-                             , "release_id" .= releaseID
+                             [ "recording_mbid" .= recordingID
+                             , "artist_mbids" .= artistID
+                             , "release_mbid" .= releaseID
                              , "tags" .= ([]::[Bool])
                              ]
                            ]
