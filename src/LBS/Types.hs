@@ -27,6 +27,7 @@ data Listen = Listen
   , artistName  :: String
   , artistID    :: [UUID]
   , recordingID :: UUID
+  , releaseName :: Maybe String
   , releaseID   :: Maybe UUID
   }
 
@@ -36,6 +37,7 @@ instance ToJSON Listen where
                          , "track_metadata" .= object
                            [ "artist_name" .= pack artistName
                            , "track_name" .= pack trackName
+                           , "release_name" .= releaseName
                            , "additional_info" .= object
                              [ "recording_mbid" .= recordingID
                              , "artist_mbids" .= artistID

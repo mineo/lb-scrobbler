@@ -95,7 +95,7 @@ extractLength s = case MPD.stTime s of
 songToListen :: MPD.Song -> IO (Either String Listen)
 songToListen song = do
   time <- fromEnum <$> epochTime
-  return (makeListen >>= \l -> Right ((l albumID) { listenedAt = Just time}))
+  return (makeListen >>= \l -> Right (l { listenedAt = Just time}))
   where getTag :: Metadata -> Maybe [MPD.Value]
         getTag t = sgGetTag t song
         getTagCase :: Metadata -> ([MPD.Value] -> Either String t) -> Either String t
@@ -108,6 +108,10 @@ songToListen song = do
         albumID = case getUUIDTag MUSICBRAINZ_ALBUMID of
                     Left _ -> Nothing
                     Right u -> Just u
+        albumName :: Maybe String
+        albumName = case getStringTag Album of
+                      Left _ -> Nothing
+                      Right s -> Just s
         getStringTag :: Metadata -> Either String String
         getStringTag t = getTagCase t
                          (\v -> case toString <$> headMay v of
@@ -128,13 +132,14 @@ songToListen song = do
                            l -> if foldl (\o n -> o && isJust n) True l
                                 then Right (fromJust <$> l)
                                 else Left (show t))
-        makeListen :: Either String (Maybe UUID -> Listen)
+        makeListen :: Either String Listen
         makeListen =
-          Listen (Just 0)
+          Listen Nothing
           <$> getStringTag Title
           <*> getStringTag Artist
           <*> getUUIDList MUSICBRAINZ_ARTISTID
           <*> getUUIDTag MUSICBRAINZ_TRACKID
+          >>= \l -> Right (l albumName albumID)
 
 scrobble :: Maybe State -> MPD.Status -> IO ()
 scrobble previousState newStatus = do
