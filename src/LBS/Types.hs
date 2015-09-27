@@ -25,7 +25,7 @@ data Listen = Listen
   { listenedAt  :: Maybe Int
   , trackName   :: String
   , artistName  :: String
-  , artistID    :: [UUID]
+  , artistIDs   :: [UUID]
   , recordingID :: UUID
   , releaseName :: Maybe String
   , releaseID   :: Maybe UUID
@@ -40,7 +40,7 @@ instance ToJSON Listen where
                            , "release_name" .= releaseName
                            , "additional_info" .= object
                              [ "recording_mbid" .= recordingID
-                             , "artist_mbids" .= artistID
+                             , "artist_mbids" .= artistIDs
                              , "release_mbid" .= releaseID
                              , "tags" .= ([]::[Bool])
                              ]
