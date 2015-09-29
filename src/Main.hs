@@ -1,26 +1,26 @@
 {-# LANGUAGE OverloadedStrings #-}
 module Main where
 
-import           Control.Exception     (handle)
-import           Control.Lens.Setter   (set)
-import           Data.Aeson            (ToJSON (..))
-import qualified Data.ByteString.Char8 as BS
-import           Data.Maybe            (fromJust, isJust)
-import           Data.UUID             (UUID, fromString)
-import qualified Data.UUID             as UUID
+import           Control.Exception       (handle)
+import           Control.Lens.Setter     (set)
+import           Data.Aeson              (ToJSON (..))
+import qualified Data.ByteString.Char8   as BS
+import           Data.Maybe              (fromJust, isJust)
+import           Data.UUID               (UUID, fromString)
+import qualified Data.UUID               as UUID
 import           LBS.Types
-import           Network.HTTP.Client   (HttpException, defaultManagerSettings,
-                                        managerResponseTimeout)
-import           Network.MPD           (Metadata (..), Subsystem (..), idle,
-                                        sgGetTag, toString, withMPD)
-import qualified Network.MPD           as MPD
-import           Network.Wreq          (defaults, header, manager, postWith)
-import           Safe                  (headMay)
-import           System.Clock          (Clock (Monotonic), TimeSpec (TimeSpec),
-                                        diffTimeSpec, getTime,
-                                        timeSpecAsNanoSecs)
-import           System.Exit           (die)
-import           System.Posix.Time     (epochTime)
+import           Network.HTTP.Client     (HttpException, managerResponseTimeout)
+import           Network.HTTP.Client.TLS (tlsManagerSettings)
+import           Network.MPD             (Metadata (..), Subsystem (..), idle,
+                                          sgGetTag, toString, withMPD)
+import qualified Network.MPD             as MPD
+import           Network.Wreq            (defaults, header, manager, postWith)
+import           Safe                    (headMay)
+import           System.Clock            (Clock (Monotonic),
+                                          TimeSpec (TimeSpec), diffTimeSpec,
+                                          getTime, timeSpecAsNanoSecs)
+import           System.Exit             (die)
+import           System.Posix.Time       (epochTime)
 
 secondsToNanoseconds :: MPD.Seconds -> Nanoseconds
 secondsToNanoseconds = (*10^9)
@@ -203,9 +203,9 @@ submit listen =
                           [BS.pack ("Token " ++ UUID.toString ( fromJust t))]
                         . set
                           manager
-                          (Left (defaultManagerSettings { managerResponseTimeout = Just 20000000})))
+                          (Left (tlsManagerSettings { managerResponseTimeout = Just 20000000})))
                          defaults)
-               "http://listenbrainz.org/1/submit-listens"
+               "https://listenbrainz.org/1/submit-listens"
                (toJSON request)
           print "Upload successful"
         handleHTTPException :: HttpException -> IO ()
