@@ -6,4 +6,4 @@ extra-deps:
     - uuid-aeson-0.1.0.0
     - aeson-0.9.0.1
     - attoparsec-0.13.0.1
-resolver: lts-3.5
+resolver: lts-3.10

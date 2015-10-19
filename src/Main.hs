@@ -34,6 +34,9 @@ getStatus = withMPD MPD.status
 getCurrentSong :: IO (MPD.Response (Maybe MPD.Song))
 getCurrentSong = withMPD MPD.currentSong
 
+userAgent :: String
+userAgent = "Mineos ListenBrainz client"
+
 -- http://www.last.fm/api/scrobbling, "When is a scrobble a scrobble?"
 minPlayTime :: Nanoseconds
 minPlayTime = secondsToNanoseconds 240
@@ -201,6 +204,9 @@ submit listen =
           _ <- postWith (( set
                           (header "Authorization")
                           [BS.pack ("Token " ++ UUID.toString ( fromJust t))]
+                        . set
+                          (header "User-Agent")
+                          [BS.pack userAgent]
                         . set
                           manager
                           (Left (tlsManagerSettings { managerResponseTimeout = Just 20000000})))
